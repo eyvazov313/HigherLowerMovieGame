@@ -1,4 +1,4 @@
-package com.example.higherlowermoviegame;
+package console;
 
 import com.example.higherlowermoviegame.dto.MovieResponse;
 import com.example.higherlowermoviegame.dto.NewGameResponse;
@@ -12,7 +12,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.modelmapper.ModelMapper;
 import org.springframework.stereotype.Service;
 
-import java.util.List;
 import java.util.Scanner;
 
 @Slf4j
@@ -26,11 +25,10 @@ public class Game {
 
     public void start() {
 
-        String selectedCategory = getSelectedCategory();
-        String selectedMode = getSelectedMode();
+        Category selectedCategory = getSelectedCategory();
+        Mode selectedMode = getSelectedMode();
 
         getStartKeyWord();
-        boolean userIsRight;
         int score = 0;
 
         NewGameResponse newGameResponse = movieService.startNewGame(selectedCategory, selectedMode);
@@ -41,9 +39,8 @@ public class Game {
         Double movie2CategoryValue = movie2.getValueByCategory(selectedCategory);
         int highestScore = newGameResponse.getHighestScore();
 
-        String actualAnswer = movie1CategoryValue < movie2CategoryValue ? Compare.HIGHER.name() : Compare.LOWER.name();
         displayMovies(selectedCategory, movie1, movie2, score, highestScore);
-        userIsRight = getUserInput().equalsIgnoreCase(actualAnswer);
+        boolean userIsRight = checkUserAnswer(movie1CategoryValue, movie2CategoryValue);
 
         while (userIsRight) {
             ++score;
@@ -53,9 +50,8 @@ public class Game {
             movie1CategoryValue = movie1.getValueByCategory(selectedCategory);
             movie2CategoryValue = movie2.getValueByCategory(selectedCategory);
 
-            actualAnswer = movie1CategoryValue < movie2CategoryValue ? Compare.HIGHER.name() : Compare.LOWER.name();
             displayMovies(selectedCategory, movie1, movie2, score, highestScore);
-            userIsRight = getUserInput().equalsIgnoreCase(actualAnswer);
+            userIsRight = checkUserAnswer(movie1CategoryValue, movie2CategoryValue);
         }
         log.info("Wrong answer. Game is over!" +
                 "Your score: {}", score);
@@ -68,8 +64,7 @@ public class Game {
     String getUserInput() {
         return sc.nextLine();
     }
-
-    void displayMovies(String selectedCategory, MovieResponse movie1, MovieResponse movie2, int score, int highestScore) {
+    void displayMovies(Category selectedCategory, MovieResponse movie1, MovieResponse movie2, int score, int highestScore) {
         log.info("current score: {} " +
                 "\nHighest score: {}", score, highestScore);
         log.info("Compare movies according to their {}", selectedCategory);
@@ -78,32 +73,29 @@ public class Game {
         log.info("{} has ... {}", movie2.getOriginalTitle(), selectedCategory);
     }
 
-
-    String getSelectedCategory() {
+    Category getSelectedCategory() {
 
         log.info("Choose category you want to compare: \n{} \n{} \n{} \n{}"
                 , Category.VOTE_AVERAGE, Category.POPULARITY, Category.RUNTIME, Category.REVENUE);
 
-        List<String> categories = List.of("popularity", "vote_average", "runtime", "revenue");
-        String selectedCategory = getUserInput();
-        if (categories.contains(selectedCategory.toLowerCase())) {
-            return selectedCategory;
+        try {
+            return Category.valueOf(getUserInput().toUpperCase());
+        } catch (IllegalArgumentException e) {
+            log.info("Invalid input.");
+            return getSelectedCategory();
         }
-        log.info("Invalid input.");
-        return getSelectedCategory();
     }
 
-    String getSelectedMode() {
+    Mode getSelectedMode() {
 
         log.info("Choose mode: \n{} \n{}", Mode.NORMAL, Mode.HARD);
 
-        String selectedMode = getUserInput();
-        List<String> mode = List.of("normal", "hard");
-        if (mode.contains(selectedMode.toLowerCase())) {
-            return selectedMode;
+        try {
+            return Mode.valueOf(getUserInput().toUpperCase());
+        } catch (IllegalArgumentException e) {
+            log.info("Invalid input.");
+            return getSelectedMode();
         }
-        log.info("Invalid input.");
-        return getSelectedMode();
     }
 
     void getStartKeyWord() {
@@ -114,6 +106,18 @@ public class Game {
         } else {
             log.info("Game started. Good lucks!");
         }
+    }
+
+    boolean checkUserAnswer(Double movie1CategoryValue, Double movie2CategoryValue) {
+        Compare expectedAnswer = null;
+        try {
+            expectedAnswer = Compare.valueOf(getUserInput().toUpperCase());
+        } catch (IllegalArgumentException e) {
+            log.info("Invalid input.");
+            checkUserAnswer(movie1CategoryValue, movie2CategoryValue);
+        }
+        Compare actualAnswer = movie1CategoryValue < movie2CategoryValue ? Compare.HIGHER : Compare.LOWER;
+        return expectedAnswer == actualAnswer;
     }
 }
 
